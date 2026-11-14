@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.yeaminul.muktocut'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.yeaminul.muktocut'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    signingConfigs {
+        debug {
+            storeFile rootProject.file('signing/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            // Replace with a private release signing config before publishing.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    sourceSets {
+        main {
+            // FFmpegKit Java API is compiled from the pinned upstream v6.0.LTS
+            // source fetched by scripts/build_apk.py. Native 16 KB libraries
+            // come from the pinned full-gpl rebuild also fetched by that script.
+            java.srcDirs += rootProject.file('.local/toolchain/ffmpeg-java')
+            jniLibs.srcDirs += rootProject.file('.local/toolchain/ffmpeg-native/jni')
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+}
+
+dependencies {
+    // Populated by scripts/build_apk.py (kept out of Git because of size).
+    implementation files(rootProject.file('.local/toolchain/smart-exception-common.jar'))
+    implementation files(rootProject.file('.local/toolchain/smart-exception-java.jar'))
+}

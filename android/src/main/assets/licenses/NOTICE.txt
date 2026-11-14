@@ -1,0 +1,44 @@
+মুক্তকাট (MuktoCut) 0.1.0
+==========================
+
+অ্যাপের লাইসেন্স: GNU General Public License v3.0 or later
+(GPL-3.0-or-later)। সম্পূর্ণ লাইসেন্স: GPL-3.0.txt।
+সোর্স কোড: https://github.com/yeaminul/1s
+
+এই অ্যাপ CapCut, ByteDance বা অন্য কোনো পেইড এডিটরের সঙ্গে সম্পর্কিত নয়।
+কোনো পেইড অ্যাসেট, লোগো বা প্রোপ্রাইটারি ইফেকট কপি করা হয়নি।
+
+তৃতীয় পক্ষের উপাদান
+----------------------
+FFmpegKit 6.0 LTS (Android full-gpl, arm64-v8a 16 KB page-size aligned)
+  Java API: upstream v6.0.LTS source থেকে কম্পাইল করা
+  LGPL-3.0-or-later (FFmpegKit-LGPL-3.0.txt)
+  Combined FFmpeg build: GPL-3.0 (GPL-3.0.txt)
+  Upstream source: https://github.com/arthenica/ffmpeg-kit/tree/v6.0.LTS
+  Native binaries: https://github.com/VineshChauhan24/ffmpeg-kit-android-16kb-lts-full-gpl
+  Pinned commit: 842bd28527958e8ab97130e8f437ef7266bee1d2 (NDK r27d rebuild)
+  arm64-v8a লাইব্রেরিগুলো 16 KB ELF alignment সহ যাচাই করা হয়েছে।
+  পুরোনো 32-bit armeabi-v7a ফোনের জন্য আলাদা APK আছে।
+
+FFmpeg এবং enabled external libraries-এর পৃথক লাইসেন্স এই ফোল্ডারের
+license_*.txt ফাইলগুলোতে আছে। এর মধ্যে রয়েছে x264, x265, xvidcore,
+lame, opus, libvpx, dav1d, freetype, fontconfig, harfbuzz, fribidi,
+libass, gnutls, nettle, gmp, libxml2, expat, cpu_features ইত্যাদি।
+
+Smart Exception (FFmpegKit dependency)
+  smart-exception-common 0.2.1 / smart-exception-java 0.2.1
+  https://github.com/arthenica/smart-exception
+
+বিল্ড টুলচেইন (APK-এর রানটাইমে অন্তর্ভুক্ত নয়)
+------------------------------------------------
+Android SDK build-tools / platform android-35 (AOSP prebuilt mirrors)
+Eclipse Compiler for Java 4.8 (EPL-1.0)
+Temurin JDK 17 runtime via jdk4py (GPL-2.0-with-Classpath-exception)
+বিস্তারিত: রিপোর THIRD_PARTY_NOTICES.md।
+
+ব্যক্তিগত তথ্য
+--------------
+মুক্তকাট ভিডিও আপলোড করে না, অ্যাকাউন্ট নেয় না, বিজ্ঞাপন দেখায় না এবং
+অ্যানালিটিক্স সংগ্রহ করে না। প্রজেক্ট ফোনের অ্যাপ-প্রাইভেট স্টোরেজে সেভ হয়।
+ভিডিও পড়তে Android Storage Access Framework-এর ব্যবহারকারী-নির্বাচিত
+অনুমতি ব্যবহার করা হয়। ইন্টারনেট পারমিশন চাওয়া হয়নি।

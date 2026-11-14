@@ -1,0 +1,2 @@
+7f36822b89187a909d10b7d429e8b3fdc07121a8fb1acf9e3073f2850632edd1  MuktoCut-0.1.0-arm64-v8a.apk
+faae8876c98464eef94f6f6f566edf80e040f56e1d4a394b8f5f5349c5e8ba8d  MuktoCut-0.1.0-armeabi-v7a.apk

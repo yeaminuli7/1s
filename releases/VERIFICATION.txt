@@ -1,0 +1,54 @@
+MuktoCut 0.1.0 build verification
+=================================
+
+JVM logic tests:
+  EditProjectTest: OK
+  ExportPlannerTest: OK
+
+APK signature / alignment:
+--- releases/MuktoCut-0.1.0-arm64-v8a.apk
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+zipalign -P 16: OK
+--- releases/MuktoCut-0.1.0-armeabi-v7a.apk
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+zipalign -P 16: OK
+
+Permissions (arm64):
+package: com.yeaminul.muktocut
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_DATA_SYNC'
+
+Native libraries (arm64):
+lib/arm64-v8a/libavcodec.so
+lib/arm64-v8a/libavdevice.so
+lib/arm64-v8a/libavfilter.so
+lib/arm64-v8a/libavformat.so
+lib/arm64-v8a/libavutil.so
+lib/arm64-v8a/libc++_shared.so
+lib/arm64-v8a/libffmpegkit.so
+lib/arm64-v8a/libffmpegkit_abidetect.so
+lib/arm64-v8a/libswresample.so
+lib/arm64-v8a/libswscale.so
+
+arm64 ELF LOAD alignment:
+  libavcodec.so 0x4000 
+  libavdevice.so 0x4000 
+  libavfilter.so 0x4000 
+  libavformat.so 0x4000 
+  libavutil.so 0x4000 
+  libc++_shared.so 0x4000 
+  libffmpegkit.so 0x4000 
+  libffmpegkit_abidetect.so 0x4000 
+  libswresample.so 0x4000 
+  libswscale.so 0x4000 
+
+Note: no Android device/emulator was available in the build sandbox; runtime install/playback/export was not device-tested.

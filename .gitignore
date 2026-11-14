@@ -1,0 +1,7 @@
+.local/
+build/
+out/
+.gradle/
+node_modules/
+*.keystore
+!debug.keystore
