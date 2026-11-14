@@ -1,4 +1,4 @@
-MuktoCut 0.1.1 build verification
+MuktoCut 0.2.0 build verification
 =================================
 
 JVM logic tests:
@@ -7,18 +7,19 @@ JVM logic tests:
 
 Robolectric startup regression (API 26, legacy resources, Java 11):
   StartupTest.activityCreatesAndLaysOut: OK
-  MainActivity create/start/resume/visible + 1080x1920 measure/layout passed.
-  This reproduces and covers the 0.1.0 launch crash:
-  TextureView.setBackgroundColor -> UnsupportedOperationException.
+
+Host FFmpeg smoke export:
+  speed + RNNoise voice isolation + Bengali text PNG overlay + audio-track mix + 9:16 canvas: OK
+  Note: host FFmpeg was used for filter-graph smoke testing; Android device export was not device-tested.
 
 APK signature / alignment:
---- releases/MuktoCut-0.1.1-arm64-v8a.apk
+--- releases/MuktoCut-0.2.0-arm64-v8a.apk
 Verifies
 Verified using v1 scheme (JAR signing): false
 Verified using v2 scheme (APK Signature Scheme v2): true
 Verified using v3 scheme (APK Signature Scheme v3): true
 zipalign -P 16: OK
---- releases/MuktoCut-0.1.1-armeabi-v7a.apk
+--- releases/MuktoCut-0.2.0-armeabi-v7a.apk
 Verifies
 Verified using v1 scheme (JAR signing): false
 Verified using v2 scheme (APK Signature Scheme v2): true
@@ -31,28 +32,7 @@ uses-permission: name='android.permission.POST_NOTIFICATIONS'
 uses-permission: name='android.permission.FOREGROUND_SERVICE'
 uses-permission: name='android.permission.FOREGROUND_SERVICE_DATA_SYNC'
 
-Native libraries (arm64):
-lib/arm64-v8a/libavcodec.so
-lib/arm64-v8a/libavdevice.so
-lib/arm64-v8a/libavfilter.so
-lib/arm64-v8a/libavformat.so
-lib/arm64-v8a/libavutil.so
-lib/arm64-v8a/libc++_shared.so
-lib/arm64-v8a/libffmpegkit.so
-lib/arm64-v8a/libffmpegkit_abidetect.so
-lib/arm64-v8a/libswresample.so
-lib/arm64-v8a/libswscale.so
+Bundled voice model:
+assets/models/voice-bd.rnnn
 
-arm64 ELF LOAD alignment:
-  libavcodec.so 0x4000 0x4000 0x4000 0x4000
-  libavdevice.so 0x4000 0x4000 0x4000
-  libavfilter.so 0x4000 0x4000 0x4000 0x4000
-  libavformat.so 0x4000 0x4000 0x4000 0x4000
-  libavutil.so 0x4000 0x4000 0x4000 0x4000
-  libc++_shared.so 0x4000 0x4000 0x4000 0x4000
-  libffmpegkit.so 0x4000 0x4000 0x4000
-  libffmpegkit_abidetect.so 0x4000 0x4000 0x4000
-  libswresample.so 0x4000 0x4000 0x4000 0x4000
-  libswscale.so 0x4000 0x4000 0x4000 0x4000
-
-Note: no physical Android device or hardware emulator was available. Runtime install/playback/export was not device-tested; the launch path was verified with Robolectric API 26.
+Note: no physical Android device or hardware emulator was available. Runtime install/playback/export was not device-tested.

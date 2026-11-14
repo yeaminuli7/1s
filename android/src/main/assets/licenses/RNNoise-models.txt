@@ -1,0 +1,11 @@
+RNNoise model: beguiling-drafter-2018-08-30 (bd.rnnn)
+Source: https://github.com/GregorR/rnnoise-models
+File: beguiling-drafter-2018-08-30/bd.rnnn
+SHA-256: ae3f7411e1e6a884f839a4a145c394408398f09854dbc1216ee02faafc98a17b
+
+Upstream repository README states:
+"With the exception of the tools/ directory and this file, none of this work
+is creative and thus none of it is subject to copyright."
+
+The bundled model is used by FFmpeg's arnndn filter for offline speech/noise
+reduction. It is not a music vocal/instrumental stem-separation model.

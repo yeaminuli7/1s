@@ -61,6 +61,21 @@ public final class EditProjectTest {
         p.addSource(reimport);
         check(p.sources.size() == sourceCount, "reimport reuses source by URI");
         check(!p.sources.get(a.id).missing, "reimport clears missing flag");
+        EditProject sped = new EditProject();
+        sped.addSource(source("s", 8_000_000L, true));
+        EditProject.EditClip sc = sped.clips.get(0);
+        sped.setSpeed(sc.id, 2f);
+        check(sc.durationUs() == 4_000_000L, "speed changes timeline duration");
+        EditProject.EditClip sr = sped.splitAt(sc.id, 1_000_000L);
+        check(sc.outUs == 2_000_000L && sr.inUs == 2_000_000L, "split maps timeline through speed");
+        check(sped.totalUs() == 4_000_000L, "split preserves sped duration");
+        sped.setSpeed(sc.id, 9f);
+        check(sc.speed == EditProject.MAX_SPEED, "speed clamps");
+        EditProject.TextOverlay text = new EditProject.TextOverlay("t", "hi", 0, 1_000_000L);
+        sped.texts.add(text);
+        EditProject copyProject = sped.deepCopy();
+        copyProject.texts.get(0).text = "changed";
+        check(!sped.texts.get(0).text.equals("changed"), "text deep copy");
         System.out.println("EditProjectTest: OK");
     }
 

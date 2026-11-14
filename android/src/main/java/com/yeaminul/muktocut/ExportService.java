@@ -41,6 +41,7 @@ public final class ExportService extends Service {
     private volatile Uri outputUri;
     private volatile String fileName = "MuktoCut.mp4";
     private volatile File tempFile;
+    private volatile File textDir;
     private final StringBuilder logTail = new StringBuilder();
     private long lastNotificationAt;
 
@@ -96,11 +97,34 @@ public final class ExportService extends Service {
                 if (saf == null || saf.isEmpty()) throw new IOException("ভিডিওটি পড়ার অনুমতি নেই");
                 paths.put(clip.sourceId, saf);
             }
+            LinkedHashMap<String, String> audioPaths = new LinkedHashMap<>();
+            for (EditProject.AudioTrack track : project.audioTracks) {
+                if (track.missing) throw new IOException("অডিও ট্র্যাকটি পাওয়া যায়নি: " + track.name);
+                String saf = FFmpegKitConfig.getSafParameterForRead(this, Uri.parse(track.uri));
+                if (saf == null || saf.isEmpty()) throw new IOException("অডিও ট্র্যাক পড়ার অনুমতি নেই: " + track.name);
+                audioPaths.put(track.id, saf);
+            }
             File dir = new File(getCacheDir(), "exports");
             if (!dir.exists() && !dir.mkdirs()) throw new IOException("অস্থায়ী ফোল্ডার তৈরি করা যায়নি");
             tempFile = new File(dir, "export-" + System.currentTimeMillis() + ".mp4");
-            ExportPlanner.Plan plan = ExportPlanner.build(project, paths, maxShort,
-                    tempFile.getAbsolutePath());
+            int[] size = ExportPlanner.outputSize(project, maxShort);
+            LinkedHashMap<String, String> textImages = new LinkedHashMap<>();
+            if (!project.texts.isEmpty()) {
+                textDir = new File(dir, "text-" + System.currentTimeMillis());
+                if (!textDir.mkdirs()) throw new IOException("টেক্সট রেন্ডার ফোল্ডার তৈরি হয়নি");
+                for (EditProject.TextOverlay t : project.texts) {
+                    if (cancelRequested) { finishCancelled(); return; }
+                    File png = new File(textDir, t.id + ".png");
+                    TextRenderer.render(t, size[0], size[1], png);
+                    textImages.put(t.id, png.getAbsolutePath());
+                }
+            }
+            String voiceModel = null;
+            boolean needsVoice = false;
+            for (EditProject.EditClip c : project.clips) if (c.voiceMode == 1) needsVoice = true;
+            if (needsVoice) voiceModel = ensureVoiceModel().getAbsolutePath();
+            ExportPlanner.Plan plan = ExportPlanner.build(project, paths, audioPaths, textImages,
+                    maxShort, tempFile.getAbsolutePath(), voiceModel);
             if (cancelRequested) {
                 finishCancelled();
                 return;
@@ -134,6 +158,25 @@ public final class ExportService extends Service {
         } catch (Throwable e) {
             fail("এক্সপোর্ট শুরু করা যায়নি", e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+    }
+
+    private File ensureVoiceModel() throws IOException {
+        File model = new File(getCacheDir(), "voice-bd.rnnn");
+        if (model.exists() && model.length() > 0) return model;
+        File tmp = new File(getCacheDir(), "voice-bd.rnnn.tmp");
+        try (InputStream in = getAssets().open("models/voice-bd.rnnn");
+             OutputStream out = new java.io.FileOutputStream(tmp)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            out.flush();
+        }
+        if (!tmp.renameTo(model)) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            if (!model.exists()) throw new IOException("ভয়েস মডেল কপি করা যায়নি");
+        }
+        return model;
     }
 
     private void finishEncode(FFmpegSession completed, ExportPlanner.Plan plan) {
@@ -264,6 +307,14 @@ public final class ExportService extends Service {
         if (tempFile != null && tempFile.exists()) {
             //noinspection ResultOfMethodCallIgnored
             tempFile.delete();
+        }
+        if (textDir != null && textDir.exists()) {
+            File[] files = textDir.listFiles();
+            if (files != null) for (File f : files) { //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            }
+            //noinspection ResultOfMethodCallIgnored
+            textDir.delete();
         }
     }
 

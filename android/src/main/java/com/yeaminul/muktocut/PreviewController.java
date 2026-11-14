@@ -5,11 +5,15 @@ import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.media.PlaybackParams;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Surface;
 import android.view.TextureView;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Sequential native preview. Export is a separate, frame-accurate FFmpeg pass;
@@ -36,6 +40,7 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
     private int currentIndex = -1;
     private int generation;
     private boolean released;
+    private final LinkedHashMap<String, MediaPlayer> audioPlayers = new LinkedHashMap<>();
 
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
@@ -59,8 +64,10 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         project = next.deepCopy();
         currentUs = clamp(timeUs);
         playing = play && !project.clips.isEmpty() && currentUs < project.totalUs();
+        releaseAudioTracks();
         releasePlayer();
         prepareCurrent();
+        prepareAudioTracks();
         emit();
     }
 
@@ -78,8 +85,10 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
                     } else {
                         player.start();
                     }
+                    syncAudio(true);
                 } else {
                     player.pause();
+                    syncAudio(false);
                 }
             } catch (IllegalStateException e) {
                 prepareCurrent();
@@ -95,6 +104,7 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         if (prepared && player != null) {
             try { player.pause(); } catch (IllegalStateException ignored) {}
         }
+        syncAudio(false);
         emit();
     }
 
@@ -105,6 +115,7 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         if (prepared && index == currentIndex && player != null) {
             long local = currentUs - project.startUs(project.clips.get(index).id);
             doSeek(local);
+            syncAudio(false);
         } else {
             prepareCurrent();
         }
@@ -129,9 +140,11 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         if (!playing || !prepared || seeking || player == null || project.clips.isEmpty()) return;
         EditProject.EditClip clip = project.clips.get(currentIndex);
         try {
-            long localUs = player.getCurrentPosition() * 1000L;
+            long sourceUs = player.getCurrentPosition() * 1000L;
+            long localUs = Math.max(0, Math.round((sourceUs - clip.inUs) / EditProject.clampSpeed(clip.speed)));
             currentUs = clamp(project.startUs(clip.id) + localUs);
-            if (localUs >= clip.outUs - 15_000L || currentUs >= project.totalUs()) {
+            syncAudio(playing);
+            if (sourceUs >= clip.outUs - 15_000L || currentUs >= project.totalUs()) {
                 advance();
             } else {
                 emit();
@@ -182,6 +195,8 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
             mp.setOnPreparedListener(p -> {
                 if (gen != generation || released) return;
                 prepared = true;
+                try { p.setPlaybackParams(new PlaybackParams().setSpeed(EditProject.clampSpeed(clip.speed))); }
+                catch (Exception ignored) {}
                 applyVolume();
                 updateTransform();
                 long local = currentUs - project.startUs(clip.id);
@@ -199,6 +214,7 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
                 try {
                     if (playing && currentUs < project.totalUs()) p.start();
                     else p.pause();
+                    syncAudio(playing && currentUs < project.totalUs());
                 } catch (IllegalStateException ignored) {}
                 emit();
             });
@@ -234,7 +250,9 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         seeking = true;
         pendingSeekUs = -1;
         try {
-            player.seekTo(Math.max(0, localUs / 1000L), MediaPlayer.SEEK_CLOSEST);
+            EditProject.EditClip clip = project.clips.get(currentIndex);
+            long sourceUs = clip.inUs + clip.sourceOffsetForTimeline(localUs);
+            player.seekTo(Math.max(0, sourceUs / 1000L), MediaPlayer.SEEK_CLOSEST);
         } catch (IllegalStateException e) {
             seeking = false;
         }
@@ -255,12 +273,67 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         int vw = texture.getWidth(), vh = texture.getHeight();
         int sw = Math.max(1, s.displayWidth()), sh = Math.max(1, s.displayHeight());
         if (vw <= 0 || vh <= 0) return;
-        float scale = Math.min(vw / (float) sw, vh / (float) sh);
-        float dw = sw * scale, dh = sh * scale;
+        EditProject.EditClip c = project.clips.get(currentIndex);
+        int rotation = ((c.rotation % 4) + 4) % 4;
+        boolean quarter = rotation == 1 || rotation == 3;
+        int rw = quarter ? sh : sw, rh = quarter ? sw : sh;
+        float scale = Math.min(vw / (float) rw, vh / (float) rh);
+        float dw = rw * scale, dh = rh * scale;
         Matrix matrix = new Matrix();
         matrix.setScale(dw / vw, dh / vh);
         matrix.postTranslate((vw - dw) / 2f, (vh - dh) / 2f);
+        Matrix extra = new Matrix();
+        extra.postScale(c.flipH ? -1 : 1, c.flipV ? -1 : 1, vw / 2f, vh / 2f);
+        extra.postRotate(rotation * 90f, vw / 2f, vh / 2f);
+        matrix.postConcat(extra);
         texture.setTransform(matrix);
+    }
+
+    private void prepareAudioTracks() {
+        releaseAudioTracks();
+        for (EditProject.AudioTrack track : project.audioTracks) {
+            if (track.missing) continue;
+            try {
+                MediaPlayer mp = new MediaPlayer();
+                mp.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
+                mp.setDataSource(context, Uri.parse(track.uri));
+                mp.setVolume(Math.min(1f, track.volume), Math.min(1f, track.volume));
+                mp.setOnPreparedListener(p -> { if (!released) syncAudio(playing); });
+                mp.setOnErrorListener((p, a, b) -> { releaseAudioPlayer(track.id); return true; });
+                audioPlayers.put(track.id, mp);
+                mp.prepareAsync();
+            } catch (Exception ignored) { releaseAudioPlayer(track.id); }
+        }
+    }
+
+    private void syncAudio(boolean play) {
+        if (released) return;
+        for (EditProject.AudioTrack track : project.audioTracks) {
+            MediaPlayer mp = audioPlayers.get(track.id);
+            if (mp == null) continue;
+            long local = timeUsForAudio(track);
+            try {
+                if (local < 0 || local >= track.durationUs) { if (mp.isPlaying()) mp.pause(); continue; }
+                long want = track.inUs + local;
+                if (Math.abs(mp.getCurrentPosition() * 1000L - want) > 300_000L)
+                    mp.seekTo(want / 1000L, MediaPlayer.SEEK_CLOSEST);
+                if (play && !mp.isPlaying()) mp.start();
+                if (!play && mp.isPlaying()) mp.pause();
+            } catch (IllegalStateException ignored) {}
+        }
+    }
+
+    private long timeUsForAudio(EditProject.AudioTrack track) { return currentUs - track.startUs; }
+
+    private void releaseAudioPlayer(String id) {
+        MediaPlayer mp = audioPlayers.remove(id);
+        if (mp != null) { try { mp.release(); } catch (Exception ignored) {} }
+    }
+
+    private void releaseAudioTracks() {
+        for (String id : new java.util.ArrayList<>(audioPlayers.keySet())) releaseAudioPlayer(id);
     }
 
     private long clamp(long us) {
@@ -293,6 +366,7 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
     void release() {
         released = true;
         main.removeCallbacks(ticker);
+        releaseAudioTracks();
         releasePlayer();
         if (surface != null) {
             surface.release();

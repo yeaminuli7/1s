@@ -33,7 +33,7 @@ public final class ExportPlannerTest {
         check(filter.contains("concat=n=3"), "timeline order concat");
         check(filter.contains("volume=0.000000"), "mute exported");
         check(filter.contains(";"), "filter graph uses semicolons");
-        check(filter.contains("[outv][outa]"), "concat outputs mapped");
+        check(filter.contains("[basev][basea]"), "concat outputs mapped");
         check(args.get(args.size() - 1).equals("/tmp/out.mp4"), "output path last");
 
         int[] portrait = ExportPlanner.outputSize(p, 720);
@@ -51,6 +51,37 @@ public final class ExportPlannerTest {
         r.addSource(rotated);
         int[] rs = ExportPlanner.outputSize(r, 0);
         check(rs[0] == 1080 && rs[1] == 1920, "rotation metadata swaps display size");
+
+        EditProject advanced = new EditProject();
+        advanced.addSource(a);
+        EditProject.EditClip ac = advanced.clips.get(0);
+        advanced.setSpeed(ac.id, 2f);
+        ac.voiceMode = 1;
+        ac.rotation = 1;
+        ac.flipH = true;
+        ac.colorPreset = 3;
+        ac.fadeInUs = 500_000L;
+        advanced.aspect = "9:16";
+        advanced.fitCanvas = false;
+        advanced.texts.add(new EditProject.TextOverlay("t", "বাংলা টেক্সট", 0, 1_000_000L));
+        advanced.audioTracks.add(new EditProject.AudioTrack("m", "content://m", "m.mp3", 0, 0, 2_000_000L, 0.5f));
+        Map<String, String> advPaths = new LinkedHashMap<>(); advPaths.put("a", "saf:a");
+        Map<String, String> advAudio = new LinkedHashMap<>(); advAudio.put("m", "saf:m");
+        Map<String, String> advText = new LinkedHashMap<>(); advText.put("t", "/tmp/t.png");
+        ExportPlanner.Plan adv = ExportPlanner.build(advanced, advPaths, advAudio, advText, 720, "/tmp/adv.mp4", "/tmp/model.rnnn");
+        String af = Arrays.asList(adv.arguments).get(Arrays.asList(adv.arguments).indexOf("-filter_complex") + 1);
+        check(adv.width == 720 && adv.height == 1280, "9:16 canvas size");
+        check(af.contains("arnndn=m='/tmp/model.rnnn'"), "voice isolation model");
+        check(af.contains("atempo=2.000000"), "speed tempo");
+        check(af.contains("transpose=1") && af.contains("hflip"), "rotate/flip export");
+        check(af.contains("colorchannelmixer"), "mono preset");
+        check(af.contains("overlay=0:0") && af.contains("between(t,"), "text overlay timing");
+        check(af.contains("amix=inputs=2") && af.contains("adelay="), "audio track mix");
+        check(af.contains("crop=720:1280"), "fill crops canvas");
+        check(Arrays.asList(adv.arguments).contains("/tmp/t.png"), "text png input");
+        check(Arrays.asList(adv.arguments).contains("saf:m"), "audio track input");
+        expectIllegal(() -> ExportPlanner.build(advanced, advPaths, advAudio, advText, 720, "/tmp/adv.mp4", null),
+                "voice model required");
 
         expectIllegal(() -> ExportPlanner.build(new EditProject(), paths, 0, "/tmp/out.mp4"),
                 "empty project rejected");

@@ -63,6 +63,22 @@ final class MediaLibrary {
         }
     }
 
+    static EditProject.AudioTrack probeAudio(Context context, Uri uri, long startUs, boolean persisted) throws IOException {
+        ContentResolver resolver = context.getContentResolver();
+        String name = displayName(resolver, uri);
+        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+        try {
+            mmr.setDataSource(context, uri);
+            long durationUs = parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION), 0) * 1000L;
+            boolean hasAudio = "yes".equals(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO));
+            if (!hasAudio || durationUs < EditProject.MIN_CLIP_US) throw new IOException("এই ফাইলে ব্যবহারযোগ্য অডিও নেই");
+            return new EditProject.AudioTrack(UUID.randomUUID().toString(), uri.toString(), name,
+                    Math.max(0, startUs), 0, durationUs, 0.8f);
+        } catch (IllegalArgumentException | SecurityException e) {
+            throw new IOException("অডিও ফাইলটি খোলা যায়নি: " + e.getMessage(), e);
+        } finally { try { mmr.release(); } catch (Exception ignored) {} }
+    }
+
     static boolean isReadable(Context context, Uri uri) {
         try (InputStream in = context.getContentResolver().openInputStream(uri)) {
             return in != null;

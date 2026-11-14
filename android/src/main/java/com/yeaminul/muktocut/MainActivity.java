@@ -46,6 +46,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
         TimelineView.Listener, ExportState.Listener {
     private static final int REQ_IMPORT = 100;
     private static final int REQ_CREATE_EXPORT = 101;
+    private static final int REQ_IMPORT_AUDIO = 102;
     private static final int MAX_HISTORY = 50;
 
     private EditProject project = new EditProject();
@@ -59,6 +60,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
     private TimelineView timeline;
     private TextureView texture;
     private LinearLayout emptyState;
+    private PreviewOverlayView overlay;
     private TextView projectName, savedLabel, timeLabel, clipCount, clipTitle, clipMeta,
             clipBadge, exportButton, progressText, progressMessage;
     private ImageView playIcon, undoIcon, redoIcon;
@@ -140,6 +142,10 @@ public final class MainActivity extends Activity implements PreviewController.Li
         texture = new TextureView(this);
         preview = new PreviewController(this, texture, this);
         previewFrame.addView(texture, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        overlay = new PreviewOverlayView(this);
+        overlay.setProject(project);
+        previewFrame.addView(overlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         emptyState = Ui.column(this);
         emptyState.setGravity(Gravity.CENTER);
@@ -240,6 +246,13 @@ public final class MainActivity extends Activity implements PreviewController.Li
         toolbar.addView(tool("left", "বামে", () -> moveSelected(-1)));
         toolbar.addView(tool("right", "ডানে", () -> moveSelected(1)));
         toolbar.addView(tool("trash", "মুছুন", this::deleteSelected));
+        toolbar.addView(tool("mic", "ভয়েস", this::showVoiceDialog));
+        toolbar.addView(tool("speed", "স্পিড", this::showSpeedDialog));
+        toolbar.addView(tool("adjust", "অ্যাডজাস্ট", this::showAdjustDialog));
+        toolbar.addView(projectTool("text", "টেক্সট", this::showTextMenu));
+        toolbar.addView(projectTool("music", "অডিও", this::showAudioMenu));
+        toolbar.addView(projectTool("canvas", "ক্যানভাস", this::showCanvasDialog));
+        toolbar.addView(projectTool("list", "ফিচার তালিকা", this::showFeatureList));
         scroller.addView(toolbar, new HorizontalScrollView.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         root.addView(scroller, Ui.lpDp(this, ViewGroup.LayoutParams.MATCH_PARENT, 76));
@@ -256,6 +269,14 @@ public final class MainActivity extends Activity implements PreviewController.Li
     }
 
     private LinearLayout tool(String icon, String label, Runnable action) {
+        return tool(icon, label, action, true);
+    }
+
+    private LinearLayout projectTool(String icon, String label, Runnable action) {
+        return tool(icon, label, action, false);
+    }
+
+    private LinearLayout tool(String icon, String label, Runnable action, boolean needsSelection) {
         LinearLayout item = Ui.column(this);
         item.setGravity(Gravity.CENTER);
         item.setClickable(true);
@@ -269,7 +290,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
         lp.topMargin = Ui.dp(this, 5);
         item.addView(text, lp);
         item.setOnClickListener(v -> action.run());
-        tools.add(item);
+        if (needsSelection) tools.add(item);
         LinearLayout.LayoutParams itemLp = Ui.lpDp(this, 66, 66);
         itemLp.rightMargin = Ui.dp(this, 2);
         item.setLayoutParams(itemLp);
@@ -326,6 +347,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
         }
         timeline.setProject(project);
         timeline.setSelected(selectedId);
+        if (overlay != null) overlay.setProject(project);
         clipCount.setText(project.clips.size() + " ক্লিপ · " + Timecode.clock(project.totalUs()));
         updateTime(preview == null ? 0 : preview.currentTimeUs(), preview != null && preview.isPlaying());
         updateSelectedPanel();
@@ -348,8 +370,10 @@ public final class MainActivity extends Activity implements PreviewController.Li
         clipBadge.setText(Integer.toString(index + 1));
         clipTitle.setText(s == null ? "ভিডিও" : s.name);
         String volume = c.volume <= 0.001f ? " · মিউট" : " · ভলিউম " + Math.round(c.volume * 100) + "%";
+        String extra = (Math.abs(c.speed - 1f) > 0.001f ? " · " + speedLabel(c.speed) + "x" : "")
+                + (c.voiceMode == 1 ? " · ভয়েস আইসোলেটেড" : "");
         clipMeta.setText(Timecode.seconds(c.durationUs()) + " সেকেন্ড · সোর্স "
-                + Timecode.seconds(c.inUs) + "–" + Timecode.seconds(c.outUs) + volume);
+                + Timecode.seconds(c.inUs) + "–" + Timecode.seconds(c.outUs) + volume + extra);
     }
 
     private void updateEnabled() {
@@ -371,6 +395,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
         long safe = Math.max(0, Math.min(us, project.totalUs()));
         timeLabel.setText(Timecode.precise(safe) + " / " + Timecode.precise(project.totalUs()));
         timeline.setTime(safe);
+        if (overlay != null) overlay.setTime(safe);
         playIcon.setImageDrawable(new Ui.IconDrawable(playing ? "pause" : "play", Ui.BG));
     }
 
@@ -382,6 +407,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
             selectedId = c == null ? null : c.id;
         }
         refreshAll(false);
+        if (overlay != null) overlay.setProject(project);
         if (reloadPreview) preview.setProject(project, time, false);
         scheduleSave();
     }
@@ -471,6 +497,8 @@ public final class MainActivity extends Activity implements PreviewController.Li
                 uris.add(data.getData());
             }
             importUris(uris);
+        } else if (requestCode == REQ_IMPORT_AUDIO && data.getData() != null) {
+            importAudio(data.getData());
         } else if (requestCode == REQ_CREATE_EXPORT && data.getData() != null && pendingExportProject != null) {
             Uri output = data.getData();
             try {
@@ -667,6 +695,297 @@ public final class MainActivity extends Activity implements PreviewController.Li
         preview.scrubTo(preview.currentTimeUs() + deltaUs);
     }
 
+    private void showVoiceDialog() {
+        EditProject.EditClip c = project.find(selectedId);
+        if (c == null) return;
+        EditProject.MediaSource s = project.sourceFor(c);
+        if (s == null || !s.hasAudio) { toast("এই ক্লিপে অডিও নেই"); return; }
+        String id = c.id;
+        LinearLayout box = Ui.column(this);
+        Ui.pad(box, 22, 12, 22, 4);
+        box.addView(Ui.text(this, "ভয়েস আইসোলেশন ক্লিপের অডিও থেকে ব্যাকগ্রাউন্ড নয়েজ কমিয়ে কথা স্পষ্ট করে। গান/মিউজিক থেকে গায়কের কণ্ঠ আলাদা করে না। প্রিভিউতে আসল অডিও শোনা যায়; প্রভাবটি এক্সপোর্টে যুক্ত হয়।", 12, Ui.MUTED, false));
+        android.widget.CheckBox enable = new android.widget.CheckBox(this);
+        enable.setText("এই ক্লিপে ভয়েস আইসোলেশন চালু করুন");
+        enable.setTextColor(Ui.TEXT);
+        enable.setChecked(c.voiceMode == 1);
+        box.addView(enable);
+        TextView value = Ui.text(this, "তীব্রতা: " + Math.round(c.voiceStrength * 100) + "%", 13, Ui.TEXT, true);
+        box.addView(value);
+        SeekBar strength = new SeekBar(this);
+        strength.setMax(100);
+        strength.setProgress(Math.round(c.voiceStrength * 100));
+        strength.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int p, boolean u) { value.setText("তীব্রতা: " + p + "%"); }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        box.addView(strength);
+        new AlertDialog.Builder(this).setTitle("ভয়েস আইসোলেশন").setView(box)
+                .setNegativeButton("বাতিল", null)
+                .setPositiveButton("প্রয়োগ", (d, w) -> edit(() -> {
+                    EditProject.EditClip live = project.find(id);
+                    if (live != null) { live.voiceMode = enable.isChecked() ? 1 : 0; live.voiceStrength = strength.getProgress() / 100f; }
+                }, true)).show();
+    }
+
+    private void showSpeedDialog() {
+        EditProject.EditClip c = project.find(selectedId);
+        if (c == null) return;
+        String id = c.id;
+        LinearLayout box = Ui.column(this);
+        Ui.pad(box, 22, 12, 22, 4);
+        TextView value = Ui.text(this, speedLabel(c.speed) + "x", 24, Ui.ACCENT, true);
+        value.setGravity(Gravity.CENTER);
+        box.addView(value);
+        SeekBar seek = new SeekBar(this);
+        seek.setMax(375);
+        seek.setProgress(Math.round((c.speed - 0.25f) * 100));
+        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int p, boolean u) { value.setText(speedLabel((p + 25) / 100f) + "x"); }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        box.addView(seek);
+        box.addView(Ui.text(this, "০.২৫x–৪x। টাইমলাইনের দৈর্ঘ্য ও অডিও pitch-preserving tempo এক্সপোর্টে বদলায়।", 11, Ui.MUTED, false));
+        new AlertDialog.Builder(this).setTitle("ক্লিপের স্পিড").setView(box)
+                .setNegativeButton("বাতিল", null)
+                .setPositiveButton("প্রয়োগ", (d, w) -> edit(() -> project.setSpeed(id, (seek.getProgress() + 25) / 100f), true)).show();
+    }
+
+    private void showAdjustDialog() {
+        EditProject.EditClip c = project.find(selectedId);
+        if (c == null) return;
+        String id = c.id;
+        LinearLayout box = Ui.column(this);
+        Ui.pad(box, 22, 12, 22, 4);
+        TextView rot = Ui.text(this, "রোটেট: " + (c.rotation * 90) + "°", 13, Ui.TEXT, true);
+        box.addView(rot);
+        LinearLayout row = Ui.row(this);
+        TextView rotate = Ui.button(this, "৯০° ঘোরান", false);
+        android.widget.CheckBox fh = new android.widget.CheckBox(this); fh.setText("আড়াআড়ি ফ্লিপ"); fh.setTextColor(Ui.TEXT); fh.setChecked(c.flipH);
+        android.widget.CheckBox fv = new android.widget.CheckBox(this); fv.setText("উল্টো ফ্লিপ"); fv.setTextColor(Ui.TEXT); fv.setChecked(c.flipV);
+        final int[] rotation = {c.rotation};
+        rotate.setOnClickListener(v -> { rotation[0] = (rotation[0] + 1) % 4; rot.setText("রোটেট: " + rotation[0] * 90 + "°"); });
+        row.addView(rotate); box.addView(row); box.addView(fh); box.addView(fv);
+        box.addView(Ui.text(this, "কালার প্রিসেট (এক্সপোর্টে)", 12, Ui.MUTED, false));
+        Spinner color = new Spinner(this);
+        String[] presets = {"আসল", "উষ্ণ", "ঠান্ডা", "সাদা-কালো", "কনট্রাস্ট"};
+        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, presets);
+        ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        color.setAdapter(ad); color.setSelection(Math.max(0, Math.min(c.colorPreset, presets.length - 1)));
+        box.addView(color);
+        EditText fi = numericField(Timecode.seconds(c.fadeInUs));
+        EditText fo = numericField(Timecode.seconds(c.fadeOutUs));
+        box.addView(Ui.text(this, "ফেড ইন (সেকেন্ড)", 12, Ui.TEXT, true)); box.addView(fi);
+        box.addView(Ui.text(this, "ফেড আউট (সেকেন্ড)", 12, Ui.TEXT, true)); box.addView(fo);
+        new AlertDialog.Builder(this).setTitle("অ্যাডজাস্ট").setView(box)
+                .setNegativeButton("বাতিল", null)
+                .setPositiveButton("প্রয়োগ", (d, w) -> {
+                    try {
+                        double in = Double.parseDouble(fi.getText().toString().trim());
+                        double out = Double.parseDouble(fo.getText().toString().trim());
+                        if (!Double.isFinite(in) || !Double.isFinite(out) || in < 0 || out < 0) throw new NumberFormatException();
+                        edit(() -> {
+                            EditProject.EditClip live = project.find(id);
+                            if (live == null) return;
+                            live.rotation = rotation[0]; live.flipH = fh.isChecked(); live.flipV = fv.isChecked();
+                            live.colorPreset = color.getSelectedItemPosition();
+                            live.fadeInUs = Math.round(in * 1_000_000); live.fadeOutUs = Math.round(out * 1_000_000);
+                            EditProject.clampFades(live);
+                        }, true);
+                    } catch (NumberFormatException e) { toast("ফেডের জন্য সঠিক সংখ্যা লিখুন"); }
+                }).show();
+    }
+
+    private void showCanvasDialog() {
+        LinearLayout box = Ui.column(this);
+        Ui.pad(box, 22, 12, 22, 4);
+        Spinner aspect = new Spinner(this);
+        String[] labels = {"আসল অনুপাত", "9:16 (শর্টস/রিলস)", "16:9 (ইউটিউব)", "1:1 (বর্গ)", "4:5 (পোর্ট্রেট)"};
+        String[] values = {"original", "9:16", "16:9", "1:1", "4:5"};
+        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, labels);
+        ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        aspect.setAdapter(ad);
+        int sel = 0; for (int i = 0; i < values.length; i++) if (values[i].equals(project.aspect)) sel = i;
+        aspect.setSelection(sel); box.addView(aspect);
+        android.widget.CheckBox fit = new android.widget.CheckBox(this);
+        fit.setText("ফিট করুন (কালো বর্ডার/লেটারবক্স)"); fit.setTextColor(Ui.TEXT); fit.setChecked(project.fitCanvas);
+        box.addView(fit);
+        box.addView(Ui.text(this, "আনচেক করলে ভিডিও ক্যানভাস ভরে ফেলবে এবং প্রয়োজনে crop হবে।", 11, Ui.MUTED, false));
+        new AlertDialog.Builder(this).setTitle("ক্যানভাস").setView(box)
+                .setNegativeButton("বাতিল", null)
+                .setPositiveButton("প্রয়োগ", (d, w) -> edit(() -> {
+                    project.aspect = values[aspect.getSelectedItemPosition()]; project.fitCanvas = fit.isChecked();
+                }, true)).show();
+    }
+
+    private void showTextMenu() {
+        String[] items = {"নতুন টেক্সট যোগ করুন", "টেক্সট তালিকা (" + project.texts.size() + ")"};
+        new AlertDialog.Builder(this).setTitle("টেক্সট ওভারলে").setItems(items, (d, which) -> {
+            if (which == 0) editText(null); else showTextList();
+        }).show();
+    }
+
+    private void showTextList() {
+        if (project.texts.isEmpty()) { toast("কোনো টেক্সট নেই"); return; }
+        String[] labels = new String[project.texts.size()];
+        for (int i = 0; i < labels.length; i++) {
+            EditProject.TextOverlay t = project.texts.get(i);
+            String shortText = t.text.length() > 24 ? t.text.substring(0, 24) + "…" : t.text;
+            labels[i] = shortText + " · " + Timecode.clock(t.startUs);
+        }
+        new AlertDialog.Builder(this).setTitle("টেক্সট তালিকা").setItems(labels, (d, which) -> editText(project.texts.get(which).id))
+                .setNeutralButton("সব মুছুন", (d, w) -> edit(() -> project.texts.clear(), false)).show();
+    }
+
+    private void editText(String id) {
+        EditProject.TextOverlay existing = null;
+        for (EditProject.TextOverlay t : project.texts) if (t.id.equals(id)) existing = t;
+        final boolean isNew = existing == null;
+        final EditProject.TextOverlay base = existing == null
+                ? new EditProject.TextOverlay(java.util.UUID.randomUUID().toString(), "", preview.currentTimeUs(),
+                    Math.max(500_000L, Math.min(3_000_000L, project.totalUs() - preview.currentTimeUs())))
+                : existing.copy();
+        LinearLayout box = Ui.column(this);
+        Ui.pad(box, 22, 12, 22, 4);
+        EditText text = new EditText(this);
+        text.setText(base.text); text.setHint("আপনার টেক্সট লিখুন"); text.setTextColor(Ui.TEXT); text.setHintTextColor(Ui.MUTED);
+        text.setMinLines(2); text.setGravity(Gravity.TOP);
+        box.addView(text, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 88)));
+        EditText start = numericField(Timecode.seconds(base.startUs));
+        EditText duration = numericField(Timecode.seconds(base.durationUs));
+        EditText size = numericField(decimalLabel(base.size * 100));
+        EditText y = numericField(decimalLabel(base.y * 100));
+        box.addView(Ui.text(this, "শুরু (সেকেন্ড)", 12, Ui.TEXT, true)); box.addView(start);
+        box.addView(Ui.text(this, "দৈর্ঘ্য (সেকেন্ড)", 12, Ui.TEXT, true)); box.addView(duration);
+        box.addView(Ui.text(this, "আকার (% ক্যানভাস উচ্চতা)", 12, Ui.TEXT, true)); box.addView(size);
+        box.addView(Ui.text(this, "উল্লম্ব অবস্থান (%)", 12, Ui.TEXT, true)); box.addView(y);
+        android.widget.CheckBox white = new android.widget.CheckBox(this); white.setText("সাদা টেক্সট + কালো বক্স"); white.setTextColor(Ui.TEXT); white.setChecked(true);
+        box.addView(white);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle(existing == null ? "নতুন টেক্সট" : "টেক্সট সম্পাদনা").setView(box)
+                .setNegativeButton("বাতিল", null)
+                .setPositiveButton("সেভ", (d, w) -> {
+                    try {
+                        String value = text.getText().toString().trim();
+                        if (value.isEmpty()) throw new IllegalArgumentException("টেক্সট খালি রাখা যাবে না");
+                        double st = Double.parseDouble(start.getText().toString().trim());
+                        double du = Double.parseDouble(duration.getText().toString().trim());
+                        double sz = Double.parseDouble(size.getText().toString().trim());
+                        double yy = Double.parseDouble(y.getText().toString().trim());
+                        if (!Double.isFinite(st) || !Double.isFinite(du) || !Double.isFinite(sz) || !Double.isFinite(yy)
+                                || st < 0 || du < 0.1 || sz <= 0 || sz > 30 || yy < 0 || yy > 100)
+                            throw new NumberFormatException();
+                        edit(() -> {
+                            base.text = value; base.startUs = Math.round(st * 1_000_000); base.durationUs = Math.round(du * 1_000_000);
+                            base.size = (float) sz / 100f; base.y = (float) yy / 100f;
+                            base.color = white.isChecked() ? 0xFFFFFFFF : 0xFF67E8C0; base.box = white.isChecked();
+                            if (isNew) project.texts.add(base);
+                            else for (int i = 0; i < project.texts.size(); i++) if (project.texts.get(i).id.equals(base.id)) project.texts.set(i, base);
+                        }, false);
+                    } catch (NumberFormatException e) { toast("সঠিক সংখ্যা লিখুন"); }
+                    catch (IllegalArgumentException e) { toast(e.getMessage()); }
+                });
+        if (!isNew) builder.setNeutralButton("মুছুন", (d, w) -> edit(() -> project.texts.removeIf(t -> t.id.equals(base.id)), false));
+        builder.show();
+    }
+
+    private void showAudioMenu() {
+        String[] items = {"অডিও/মিউজিক ফাইল যোগ করুন", "নির্বাচিত ক্লিপের অডিও আলাদা ট্র্যাক করুন", "অডিও ট্র্যাক তালিকা (" + project.audioTracks.size() + ")"};
+        new AlertDialog.Builder(this).setTitle("অডিও").setItems(items, (d, which) -> {
+            if (which == 0) pickAudio(); else if (which == 1) extractSelectedAudio(); else showAudioList();
+        }).show();
+    }
+
+    private void pickAudio() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("audio/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(intent, REQ_IMPORT_AUDIO); } catch (Exception e) { toast("ফাইল পিকার খোলা যায়নি"); }
+    }
+
+    private void importAudio(Uri uri) {
+        boolean persisted = false;
+        try { getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); persisted = true; } catch (Exception ignored) {}
+        final boolean persistedFinal = persisted;
+        long start = preview.currentTimeUs();
+        io.execute(() -> {
+            try {
+                EditProject.AudioTrack track = MediaLibrary.probeAudio(this, uri, start, persistedFinal);
+                runOnUiThread(() -> { if (!isDestroyed()) edit(() -> project.audioTracks.add(track), true); });
+            } catch (Exception e) { runOnUiThread(() -> toast(e.getMessage() == null ? "অডিও যোগ হয়নি" : e.getMessage())); }
+        });
+    }
+
+    private void extractSelectedAudio() {
+        EditProject.EditClip c = project.find(selectedId);
+        EditProject.MediaSource s = project.sourceFor(c);
+        if (c == null || s == null || !s.hasAudio) { toast("এই ক্লিপে অডিও নেই"); return; }
+        if (Math.abs(c.speed - 1f) > 0.001f) { toast("অডিও আলাদা করার আগে ক্লিপের স্পিড ১x করুন"); return; }
+        long start = project.startUs(c.id);
+        edit(() -> {
+            project.audioTracks.add(new EditProject.AudioTrack(java.util.UUID.randomUUID().toString(), s.uri,
+                    s.name + " (অডিও)", start, c.inUs, c.sourceDurationUs(), c.volume));
+            c.volume = 0f;
+        }, true);
+        toast("অডিও আলাদা ট্র্যাকে যুক্ত হয়েছে; ক্লিপটি মিউট করা হয়েছে");
+    }
+
+    private void showAudioList() {
+        if (project.audioTracks.isEmpty()) { toast("কোনো অডিও ট্র্যাক নেই"); return; }
+        String[] labels = new String[project.audioTracks.size()];
+        for (int i = 0; i < labels.length; i++) {
+            EditProject.AudioTrack a = project.audioTracks.get(i);
+            labels[i] = a.name + " · " + Timecode.clock(a.startUs) + " · " + Math.round(a.volume * 100) + "%";
+        }
+        new AlertDialog.Builder(this).setTitle("অডিও ট্র্যাক").setItems(labels, (d, which) -> {
+            EditProject.AudioTrack a = project.audioTracks.get(which);
+            String[] actions = {"ভলিউম বদলান", "প্লেহেড থেকে শুরু করুন", "মুছুন"};
+            new AlertDialog.Builder(this).setTitle(a.name).setItems(actions, (dd, act) -> {
+                if (act == 0) {
+                    LinearLayout box = Ui.column(this); Ui.pad(box, 22, 12, 22, 4);
+                    SeekBar seek = new SeekBar(this); seek.setMax(200); seek.setProgress(Math.round(a.volume * 100)); box.addView(seek);
+                    new AlertDialog.Builder(this).setTitle("অডিও ভলিউম").setView(box)
+                            .setPositiveButton("প্রয়োগ", (x, y) -> edit(() -> a.volume = seek.getProgress() / 100f, true))
+                            .setNegativeButton("বাতিল", null).show();
+                } else if (act == 1) edit(() -> a.startUs = preview.currentTimeUs(), true);
+                else edit(() -> project.audioTracks.remove(a), true);
+            }).show();
+        }).show();
+    }
+
+    private static String speedLabel(float speed) {
+        return decimalLabel(speed);
+    }
+
+    private static String decimalLabel(float value) {
+        return String.format(Locale.US, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+
+    private void showFeatureList() {
+        String list = "CapCut-অনুপ্রাণিত ফিচার তালিকা ও মুক্তকাটের অবস্থা\n\n"
+                + "যুক্ত আছে/এই সংস্করণে যুক্ত হয়েছে:\n"
+                + "• ভিডিও ইমপোর্ট, মাল্টি-ক্লিপ টাইমলাইন, স্প্লিট, ট্রিম, কপি/সরানো/মুছে ফেলা, আনডু/রিডু\n"
+                + "• ভলিউম ০–২০০%, মিউট, অডিও ট্র্যাক/মিউজিক ইমপোর্ট, ভিডিও থেকে অডিও আলাদা করা\n"
+                + "• অফলাইন ভয়েস আইসোলেশন/নয়েজ কমানো (RNNoise, এক্সপোর্টে প্রয়োগ)\n"
+                + "• স্পিড ০.২৫x–৪x, pitch-preserving audio tempo\n"
+                + "• টেক্সট ওভারলে: বাংলা/ইংরেজি, সময়, আকার, অবস্থান, বক্স\n"
+                + "• ক্যানভাস 9:16/16:9/1:1/4:5, fit/fill\n"
+                + "• রোটেট, ফ্লিপ, কালার প্রিসেট, ফেড ইন/আউট\n"
+                + "• MP4 এক্সপোর্ট, অটো/720p/1080p, ওয়াটারমার্ক নেই\n\n"
+                + "এখনো যুক্ত নয় (পরবর্তী ধাপ):\n"
+                + "• অটো ক্যাপশন/স্পিচ-টু-টেক্সট, টেক্সট-টু-স্পিচ\n"
+                + "• গান থেকে vocal/instrumental স্টেম সেপারেশন\n"
+                + "• কীফ্রেম অ্যানিমেশন, স্পিড কার্ভ, অপটিক্যাল ফ্লো\n"
+                + "• ক্রোমা কি, AI ব্যাকগ্রাউন্ড রিমুভাল, মোশন ট্র্যাকিং\n"
+                + "• স্টেবিলাইজেশন, ট্রানজিশন/ইফেক্ট লাইব্রেরি, স্টিকার/টেমপ্লেট\n"
+                + "• মাল্টি-ট্র্যাক ভিডিও ওভারলে/PiP, 4K/60fps এক্সপোর্ট\n\n"
+                + "CapCut-এর পেইড/প্রোপ্রাইটারি অ্যাসেট বা ইফেকট কপি করা হয়নি। ফিচারের নাম/তালিকা শুধু রোডম্যাপ তৈরিতে ব্যবহৃত।";
+        TextView text = Ui.text(this, list, 12, Ui.TEXT, false);
+        Ui.pad(text, 20, 14, 20, 14); text.setTextIsSelectable(true);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this); scroll.addView(text);
+        new AlertDialog.Builder(this).setTitle("ফিচার তালিকা").setView(scroll).setPositiveButton("বন্ধ", null).show();
+    }
+
     private void showExportDialog() {
         if (project.clips.isEmpty()) { toast("আগে একটি ভিডিও যোগ করুন"); return; }
         if (ExportState.isRunning()) { toast("একটি এক্সপোর্ট ইতিমধ্যে চলছে"); return; }
@@ -834,11 +1153,12 @@ public final class MainActivity extends Activity implements PreviewController.Li
     private void showProjectMenu() {
         new AlertDialog.Builder(this)
                 .setTitle("প্রজেক্ট")
-                .setItems(new String[]{"নাম বদলান", "নতুন প্রজেক্ট", "মুক্তকাট সম্পর্কে", "লাইসেন্স ও সোর্স কোড"},
+                .setItems(new String[]{"নাম বদলান", "নতুন প্রজেক্ট", "ফিচার তালিকা", "মুক্তকাট সম্পর্কে", "লাইসেন্স ও সোর্স কোড"},
                         (d, which) -> {
                             if (which == 0) renameProject();
                             else if (which == 1) confirmNewProject();
-                            else if (which == 2) showAbout();
+                            else if (which == 2) showFeatureList();
+                            else if (which == 3) showAbout();
                             else showLicenses();
                         }).show();
     }
@@ -880,10 +1200,10 @@ public final class MainActivity extends Activity implements PreviewController.Li
 
     private void showAbout() {
         new AlertDialog.Builder(this)
-                .setTitle("মুক্তকাট 0.1.1")
+                .setTitle("মুক্তকাট 0.2.0")
                 .setMessage("নিজস্ব ব্র্যান্ডের ফ্রি ও অফলাইন ভিডিও এডিটর।\n\n"
-                        + "এই প্রথম সংস্করণে: ইমপোর্ট, মাল্টি-ক্লিপ টাইমলাইন, স্প্লিট, ট্রিম, ভলিউম, ক্লিপ সাজানো, আনডু/রিডু, লোকাল প্রজেক্ট সেভ এবং MP4 এক্সপোর্ট।\n\n"
-                        + "টেক্সট, ট্রানজিশন, AI ক্যাপশন ও ব্যাকগ্রাউন্ড রিমুভাল এখনো যুক্ত নয়।\n\n"
+                        + "এই সংস্করণে: ইমপোর্ট, টাইমলাইন, স্প্লিট/ট্রিম, ভলিউম, স্পিড, টেক্সট ওভারলে, অডিও ট্র্যাক, ক্যানভাস, রোটেট/ফ্লিপ, কালার প্রিসেট, ফেড, অফলাইন ভয়েস আইসোলেশন ও MP4 এক্সপোর্ট।\n\n"
+                        + "ভয়েস আইসোলেশন ব্যাকগ্রাউন্ড নয়েজ কমায়; গান থেকে গায়কের কণ্ঠ আলাদা করার স্টেম সেপারেশন নয়। অটো ক্যাপশন, TTS, কীফ্রেম, ক্রোমা কি ও AI ব্যাকগ্রাউন্ড রিমুভাল এখনো যুক্ত নয়।\n\n"
                         + "লাইসেন্স: GPL-3.0-or-later। FFmpeg/FFmpegKit ব্যবহৃত হয়েছে। CapCut বা ByteDance-এর সঙ্গে এই অ্যাপের কোনো সম্পর্ক নেই।")
                 .setPositiveButton("ঠিক আছে", null)
                 .setNeutralButton("সোর্স কোড", (d, w) -> {
@@ -949,7 +1269,9 @@ public final class MainActivity extends Activity implements PreviewController.Li
             pushUndo(project.deepCopy());
             trimGestureChanged = true;
         }
-        project.nudgeTrim(clipId, leftEdge, deltaUs);
+        EditProject.EditClip dragged = project.find(clipId);
+        long sourceDelta = dragged == null ? deltaUs : Math.round(deltaUs * EditProject.clampSpeed(dragged.speed));
+        project.nudgeTrim(clipId, leftEdge, sourceDelta);
         timeline.setProject(project);
         updateSelectedPanel();
         long total = project.totalUs();

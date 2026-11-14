@@ -1,4 +1,4 @@
-মুক্তকাট (MuktoCut) 0.1.1
+মুক্তকাট (MuktoCut) 0.2.0
 ==========================
 
 অ্যাপের লাইসেন্স: GNU General Public License v3.0 or later
@@ -42,3 +42,9 @@ Temurin JDK 17 runtime via jdk4py (GPL-2.0-with-Classpath-exception)
 অ্যানালিটিক্স সংগ্রহ করে না। প্রজেক্ট ফোনের অ্যাপ-প্রাইভেট স্টোরেজে সেভ হয়।
 ভিডিও পড়তে Android Storage Access Framework-এর ব্যবহারকারী-নির্বাচিত
 অনুমতি ব্যবহার করা হয়। ইন্টারনেট পারমিশন চাওয়া হয়নি।
+
+RNNoise voice-isolation model
+  bd.rnnn (beguiling-drafter-2018-08-30)
+  https://github.com/GregorR/rnnoise-models
+  Upstream README: model files are not subject to copyright.
+  Used for offline speech/background-noise reduction, not music stem separation.

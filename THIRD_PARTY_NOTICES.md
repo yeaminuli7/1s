@@ -38,6 +38,12 @@ The Arena sandbox only allows GitHub and PyPI outbound hosts, so
 | Eclipse Compiler for Java | `Shiniga-OP/Compilador-de-Java-para-DEX@313e8b851f2bece4511722198faa7f3877e17b88`, `ecj-4.8.jar`, SHA-256 `5d53b25fd09b8d83157634af682b4c64bce9def70f6533f81d9115526057ae69` | EPL-1.0. Used because the PyPI JDK package is a runtime without `javac`. |
 | Java runtime | PyPI `jdk4py==17.0.9.2` (Temurin 17.0.9) | GPL-2.0 with Classpath exception. |
 
+## Offline voice-isolation model
+
+| Component | Provenance | Notes |
+|---|---|---|
+| RNNoise `bd.rnnn` | `GregorR/rnnoise-models`, `beguiling-drafter-2018-08-30/bd.rnnn`, SHA-256 `ae3f7411e1e6a884f839a4a145c394408398f09854dbc1216ee02faafc98a17b` | Bundled in `android/src/main/assets/models/voice-bd.rnnn`; used by FFmpeg `arnndn` for offline background-noise reduction. Upstream README says the model files are not subject to copyright. This is speech denoising, not music vocal/stem separation. |
+
 ## Signing
 
 `signing/debug.keystore` is a **public development key** with the standard

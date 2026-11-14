@@ -218,7 +218,7 @@ final class TimelineView extends View {
         for (float x = first; x < clipRect.right && x < getWidth(); x += tileW) {
             if (x + tileW < clipRect.left) continue;
             float center = Math.max(clipRect.left, Math.min(clipRect.right, x + tileW / 2));
-            long sourceUs = c.inUs + Math.round((center - clipLeft) / pixelsPerSecond * 1_000_000f);
+            long sourceUs = c.inUs + c.sourceOffsetForTimeline(Math.round((center - clipLeft) / pixelsPerSecond * 1_000_000f));
             sourceUs = Math.max(c.inUs, Math.min(c.outUs - 1, sourceUs));
             Bitmap bitmap = library.thumbnail(source, sourceUs, this::invalidate);
             if (bitmap == null || bitmap.isRecycled()) continue;

@@ -259,6 +259,33 @@ final class Ui {
                     p.lineTo(4, 6); p.close(); canvas.drawPath(p, paint);
                     p.reset(); p.moveTo(8.5f, 12); p.lineTo(11, 14.5f); p.lineTo(15.5f, 9.5f);
                     canvas.drawPath(p, paint); break;
+                case "mic":
+                    canvas.drawRoundRect(new RectF(9, 3, 15, 14), 3, 3, paint);
+                    canvas.drawArc(new RectF(6, 8, 18, 20), 0, 180, false, paint);
+                    line(canvas, 12, 20, 12, 22); line(canvas, 9, 22, 15, 22); break;
+                case "speed":
+                    canvas.drawArc(new RectF(4, 5, 20, 21), 180, 180, false, paint);
+                    line(canvas, 12, 13, 16, 9); line(canvas, 4, 21, 20, 21); break;
+                case "adjust":
+                    line(canvas, 5, 7, 19, 7); line(canvas, 5, 12, 19, 12); line(canvas, 5, 17, 19, 17);
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(9, 7, 2, paint); canvas.drawCircle(15, 12, 2, paint); canvas.drawCircle(8, 17, 2, paint);
+                    paint.setStyle(Paint.Style.STROKE); break;
+                case "text":
+                    line(canvas, 5, 6, 19, 6); line(canvas, 12, 6, 12, 19); line(canvas, 8, 19, 16, 19); break;
+                case "music":
+                    line(canvas, 9, 18, 9, 6); line(canvas, 9, 6, 19, 4); line(canvas, 19, 4, 19, 16);
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(7, 18, 2.5f, paint); canvas.drawCircle(17, 16, 2.5f, paint);
+                    paint.setStyle(Paint.Style.STROKE); break;
+                case "canvas":
+                    canvas.drawRoundRect(new RectF(4, 5, 20, 19), 2, 2, paint);
+                    line(canvas, 8, 9, 16, 9); line(canvas, 8, 15, 16, 15); break;
+                case "list":
+                    line(canvas, 8, 6, 20, 6); line(canvas, 8, 12, 20, 12); line(canvas, 8, 18, 20, 18);
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(4, 6, 1, paint); canvas.drawCircle(4, 12, 1, paint); canvas.drawCircle(4, 18, 1, paint);
+                    paint.setStyle(Paint.Style.STROKE); break;
                 case "logo":
                     paint.setStyle(Paint.Style.FILL);
                     canvas.drawRoundRect(new RectF(1, 1, 23, 23), 6, 6, paint);
