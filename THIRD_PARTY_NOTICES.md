@@ -34,7 +34,7 @@ The Arena sandbox only allows GitHub and PyPI outbound hosts, so
 | Tool | Provenance | Notes |
 |---|---|---|
 | Android platform `android.jar` API 35 | `Sable/android-platforms@1e98db1a199e8f7f85541af26bfc27019501b132`, `android-35/android.jar`, SHA-256 `4566663c3876e022b4fa4ced8c8697c4ab1688267f090114fd92d027b32e619b` | Compile-time stubs only. |
-| Android SDK build-tools | `ag-sdc-ci/prebuilts_host_sdk-build-tools@399b0d3d0019f04d8b70b81b9a2298fec1b2c456`, archive SHA-256 `a52cfd0b4413a43af88af734599bfea87f9db7f8fd36b57742ed153c6d8b2093` | AOSP host prebuilt shadow; aapt/aapt2/d8/apksigner/zipalign. |
+| Android SDK build-tools | `ag-sdc-ci/prebuilts_host_sdk-build-tools@399b0d3d0019f04d8b70b81b9a2298fec1b2c456`, archive SHA-256 `b251d7453e7f12d37bc44ccf24c26b503e63f7e6bca4fe3492016cf9c2ecfa71` | AOSP host prebuilt shadow; aapt/aapt2/d8/apksigner/zipalign. |
 | Eclipse Compiler for Java | `Shiniga-OP/Compilador-de-Java-para-DEX@313e8b851f2bece4511722198faa7f3877e17b88`, `ecj-4.8.jar`, SHA-256 `5d53b25fd09b8d83157634af682b4c64bce9def70f6533f81d9115526057ae69` | EPL-1.0. Used because the PyPI JDK package is a runtime without `javac`. |
 | Java runtime | PyPI `jdk4py==17.0.9.2` (Temurin 17.0.9) | GPL-2.0 with Classpath exception. |
 

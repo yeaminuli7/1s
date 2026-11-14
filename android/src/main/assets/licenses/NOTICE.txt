@@ -1,9 +1,9 @@
-মুক্তকাট (MuktoCut) 0.1.0
+মুক্তকাট (MuktoCut) 0.1.1
 ==========================
 
 অ্যাপের লাইসেন্স: GNU General Public License v3.0 or later
 (GPL-3.0-or-later)। সম্পূর্ণ লাইসেন্স: GPL-3.0.txt।
-সোর্স কোড: https://github.com/yeaminul/1s
+সোর্স কোড: https://github.com/yeaminuli7/1s
 
 এই অ্যাপ CapCut, ByteDance বা অন্য কোনো পেইড এডিটরের সঙ্গে সম্পর্কিত নয়।
 কোনো পেইড অ্যাসেট, লোগো বা প্রোপ্রাইটারি ইফেকট কপি করা হয়নি।

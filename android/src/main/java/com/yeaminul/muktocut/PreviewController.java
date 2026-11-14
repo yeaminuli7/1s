@@ -50,7 +50,8 @@ final class PreviewController implements TextureView.SurfaceTextureListener {
         this.texture = texture;
         this.listener = listener;
         texture.setSurfaceTextureListener(this);
-        texture.setBackgroundColor(0xFF000000);
+        // TextureView does not support background drawables on Android. The
+        // containing FrameLayout in MainActivity supplies the black background.
         main.post(ticker);
     }
 

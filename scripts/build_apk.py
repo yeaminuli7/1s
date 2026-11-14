@@ -33,8 +33,8 @@ BUILD = ROOT / "build"
 RELEASE = ROOT / "releases"
 APP = ROOT / "android" / "src" / "main"
 PKG = "com.yeaminul.muktocut"
-VERSION_CODE = "1"
-VERSION_NAME = "0.1.0"
+VERSION_CODE = "2"
+VERSION_NAME = "0.1.1"
 MIN_SDK = "26"
 TARGET_SDK = "35"
 
@@ -48,7 +48,7 @@ ANDROID_JAR = {
 }
 BUILD_TOOLS = {
     "url": "https://codeload.github.com/ag-sdc-ci/prebuilts_host_sdk-build-tools/zip/399b0d3d0019f04d8b70b81b9a2298fec1b2c456",
-    "sha256": "a52cfd0b4413a43af88af734599bfea87f9db7f8fd36b57742ed153c6d8b2093",
+    "sha256": "b251d7453e7f12d37bc44ccf24c26b503e63f7e6bca4fe3492016cf9c2ecfa71",
     "dir": "prebuilts_host_sdk-build-tools-399b0d3d0019f04d8b70b81b9a2298fec1b2c456",
 }
 ECJ = {

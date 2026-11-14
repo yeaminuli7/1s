@@ -15,6 +15,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -118,7 +119,16 @@ final class Ui {
     }
 
     static LinearLayout.LayoutParams lpDp(Context c, float w, float h) {
-        return new LinearLayout.LayoutParams(dp(c, w), dp(c, h));
+        return new LinearLayout.LayoutParams(layoutSize(c, w), layoutSize(c, h));
+    }
+
+    /** dp conversion that preserves Android's special MATCH_PARENT/WRAP_CONTENT values. */
+    static int layoutSize(Context c, float value) {
+        if (value == ViewGroup.LayoutParams.MATCH_PARENT
+                || value == ViewGroup.LayoutParams.WRAP_CONTENT) {
+            return (int) value;
+        }
+        return dp(c, value);
     }
 
     static LinearLayout.LayoutParams weight(float heightDp, float weight, Context c) {

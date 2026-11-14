@@ -880,7 +880,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
 
     private void showAbout() {
         new AlertDialog.Builder(this)
-                .setTitle("মুক্তকাট 0.1.0")
+                .setTitle("মুক্তকাট 0.1.1")
                 .setMessage("নিজস্ব ব্র্যান্ডের ফ্রি ও অফলাইন ভিডিও এডিটর।\n\n"
                         + "এই প্রথম সংস্করণে: ইমপোর্ট, মাল্টি-ক্লিপ টাইমলাইন, স্প্লিট, ট্রিম, ভলিউম, ক্লিপ সাজানো, আনডু/রিডু, লোকাল প্রজেক্ট সেভ এবং MP4 এক্সপোর্ট।\n\n"
                         + "টেক্সট, ট্রানজিশন, AI ক্যাপশন ও ব্যাকগ্রাউন্ড রিমুভাল এখনো যুক্ত নয়।\n\n"
@@ -889,7 +889,7 @@ public final class MainActivity extends Activity implements PreviewController.Li
                 .setNeutralButton("সোর্স কোড", (d, w) -> {
                     try {
                         startActivity(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/yeaminul/1s")));
+                                Uri.parse("https://github.com/yeaminuli7/1s")));
                     } catch (Exception ignored) {}
                 }).show();
     }
